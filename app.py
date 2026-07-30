@@ -1,122 +1,84 @@
+
 import streamlit as st
-import pandas as pd
+import numpy as np
 import joblib
 
-# Load model and preprocessing files
-model = joblib.load("LR_ford_car.pkl")
-scaler = joblib.load("scaler.pkl")
-encoded_columns = joblib.load("columns.pkl")
-
-# Page settings
-st.set_page_config(page_title="Ford Car Price Predictor", layout="centered")
-
-st.title("Ford Car Price Predictor")
-st.write("Enter the car details below to predict the selling price.")
-
-# -----------------------------
-# User Inputs
-# -----------------------------
-year = st.number_input("Year", min_value=1990, max_value=2025, value=2018)
-
-mileage = st.number_input("Mileage", min_value=0, value=30000)
-
-tax = st.number_input("Tax", min_value=0, value=145)
-
-mpg = st.number_input("MPG", min_value=0.0, value=55.4)
-
-engineSize = st.number_input("Engine Size", min_value=0.0, value=1.5)
-
-model_name = st.selectbox(
-    "Model",
-    [
-        "Fiesta",
-        "Focus",
-        "Kuga",
-        "EcoSport",
-        "Mondeo",
-        "Ka+",
-        "Puma",
-        "B-MAX",
-        "C-MAX",
-        "S-MAX",
-        "Galaxy",
-        "Edge",
-        "Grand C-MAX",
-        "Mustang",
-        "Ranger",
-        "Transit Tourneo"
-    ]
+st.set_page_config(
+    page_title="Multi-Model ML App",
+    page_icon="🤖"
 )
 
-transmission = st.selectbox(
-    "Transmission",
-    [
-        "Manual",
-        "Automatic",
-        "Semi-Auto"
-    ]
+st.title("🤖 Multi-Model Machine Learning App")
+st.write("Classification and Regression Prediction")
+
+# Load models
+classification_models = joblib.load("classification_models.pkl")
+regression_models = joblib.load("regression_models.pkl")
+
+classification_scaler = joblib.load("classification_scaler.pkl")
+regression_scaler = joblib.load("regression_scaler.pkl")
+
+classification_columns = joblib.load("classification_columns.pkl")
+regression_columns = joblib.load("regression_columns.pkl")
+
+problem_type = st.selectbox(
+    "Select Problem Type",
+    ["Classification", "Regression"]
 )
 
-fuelType = st.selectbox(
-    "Fuel Type",
-    [
-        "Petrol",
-        "Diesel",
-        "Hybrid",
-        "Electric",
-        "Other"
-    ]
-)
+if problem_type == "Classification":
 
+    st.header("Classification")
 
+    algorithm = st.selectbox(
+        "Select Classification Algorithm",
+        list(classification_models.keys())
+    )
 
+    inputs = []
 
-# -----------------------------
-# Prediction
-# -----------------------------
-if st.button("Predict Price"):
+    for column in classification_columns:
+        value = st.number_input(column, value=0.0)
+        inputs.append(value)
 
-    # Create input dictionary
-    input_data = {
-        "year": year,
-        "mileage": mileage,
-        "tax": tax,
-        "mpg": mpg,
-        "engineSize": engineSize
-    }
+    if st.button("Predict Classification"):
 
-    # Create DataFrame
-    input_df = pd.DataFrame([input_data])
+        input_data = np.array(inputs).reshape(1, -1)
+        input_scaled = classification_scaler.transform(input_data)
 
-    # Scale numerical columns
-    numerical_cols = ["year", "mileage", "tax", "mpg", "engineSize"]
-    input_df[numerical_cols] = scaler.transform(input_df[numerical_cols])
+        model = classification_models[algorithm]
+        prediction = model.predict(input_scaled)[0]
 
-    # Create empty dataframe with all encoded columns
-    final_df = pd.DataFrame(columns=encoded_columns)
-    final_df.loc[0] = 0
+        if prediction == 0:
+            result = "Malignant"
+        else:
+            result = "Benign"
 
-    # Fill numerical columns
-    for col in numerical_cols:
-        if col in final_df.columns:
-            final_df.loc[0, col] = input_df.loc[0, col]
+        st.success(f"Prediction: {result}")
 
-    # One-Hot Encoding
-    model_col = "model_" + model_name
-    transmission_col = "transmission_" + transmission
-    fuel_col = "fuelType_" + fuelType
+else:
 
-    if model_col in final_df.columns:
-        final_df.loc[0, model_col] = 1
+    st.header("Regression")
 
-    if transmission_col in final_df.columns:
-        final_df.loc[0, transmission_col] = 1
+    algorithm = st.selectbox(
+        "Select Regression Algorithm",
+        list(regression_models.keys())
+    )
 
-    if fuel_col in final_df.columns:
-        final_df.loc[0, fuel_col] = 1
+    inputs = []
 
-    # Prediction
-    prediction = model.predict(final_df)[0]
+    for column in regression_columns:
+        value = st.number_input(column, value=0.0)
+        inputs.append(value)
 
-    st.success(f"Predicted Price: £ {prediction:,.2f}")
-    
+    if st.button("Predict House Value"):
+
+        input_data = np.array(inputs).reshape(1, -1)
+        input_scaled = regression_scaler.transform(input_data)
+
+        model = regression_models[algorithm]
+        prediction = model.predict(input_scaled)[0]
+
+        st.success(
+            f"Predicted House Value: {prediction:.4f}"
+        )
